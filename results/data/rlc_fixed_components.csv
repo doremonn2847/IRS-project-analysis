@@ -1,0 +1,8 @@
+scheme,mean_rate_bpshz,std_rate_bpshz
+Ideal IRS,3.2760,0.2817
+"All free $L_1,L_2,C,R$",3.1876,0.2795
+"$C,R$ free",2.9844,0.2806
+"$C,L_1$ free",2.9113,0.2840
+Only $C$ free (varactor),2.2221,0.3004
+AO: Eq.(5) model [1],2.3077,0.2839
+No IRS,0.1496,0.0988

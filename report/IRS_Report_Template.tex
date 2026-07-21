@@ -1,0 +1,519 @@
+\documentclass[12pt, a4paper]{article}
+
+% ─── Packages ───────────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[a4paper, margin=2.5cm]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{xcolor}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{tikz}
+
+% ─── Page Style ─────────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\small IRS Beamforming Optimization}
+\lhead{\small [Your Name] -- [Student ID]}
+\cfoot{\thepage}
+
+\onehalfspacing
+
+% ─── Theorem Environments ───────────────────────────────────────────────────
+\newtheorem{proposition}{Proposition}
+\newtheorem{remark}{Remark}
+
+% ─── Custom Commands ────────────────────────────────────────────────────────
+\newcommand{\vect}[1]{\mathbf{#1}}          % bold vectors
+\newcommand{\mat}[1]{\mathbf{#1}}           % bold matrices
+\newcommand{\norm}[1]{\left\|#1\right\|}    % norm
+\newcommand{\abs}[1]{\left|#1\right|}       % absolute value
+\newcommand{\TODO}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}  % placeholder marker
+
+% ════════════════════════════════════════════════════════════════════════════
+\begin{document}
+
+% ─── Title Page ─────────────────────────────────────────────────────────────
+\begin{titlepage}
+    \centering
+    \vspace*{1cm}
+
+    {\Large \textbf{[Your University Name]}}\\[0.3cm]
+    {\large Department of Electrical Engineering / Electronics \& Telecommunications}\\[2cm]
+
+    \rule{\linewidth}{0.5mm}\\[0.4cm]
+    {\LARGE \textbf{Applications of Electronic Circuits\\[0.3cm]
+    in Communication Engineering}}\\[0.3cm]
+    \rule{\linewidth}{0.5mm}\\[1.5cm]
+
+    {\large \textbf{Project Title:}}\\[0.3cm]
+    {\Large Beamforming Optimization for IRS-Aided Wireless Systems\\
+    Using Particle Swarm Optimization}\\[2cm]   % <-- change algorithm name if needed
+
+    \begin{tabular}{rl}
+        \textbf{Student Name:}  & \TODO{Your Full Name} \\[0.2cm]
+        \textbf{Student ID:}    & \TODO{Your Student ID} \\[0.2cm]
+        \textbf{Class:}         & \TODO{Your Class Code} \\[0.2cm]
+        \textbf{Instructor:}    & \TODO{Instructor Name} \\[0.2cm]
+        \textbf{Date:}          & \today \\
+    \end{tabular}
+
+    \vfill
+    {\small Submitted in partial fulfillment of the requirements for\\
+    the course on Applications of Electronic Circuits in Communication Engineering}
+\end{titlepage}
+
+% ─── Abstract ───────────────────────────────────────────────────────────────
+\begin{abstract}
+This report presents the study and implementation of beamforming optimization
+for an Intelligent Reflecting Surface (IRS) aided wireless communication system.
+We first review the practical phase shift model proposed by Abeywickrama \textit{et al.}
+\cite{abeywickrama2020}, which captures the amplitude-phase coupling in IRS reflecting
+elements -- a critical hardware imperfection ignored by most prior work.
+We then apply \textbf{Particle Swarm Optimization (PSO)}
+% ^^^ CHANGE THIS to your chosen algorithm
+to jointly optimize the transmit beamforming at the access point and the
+IRS phase shifts, with the goal of maximizing the achievable spectral efficiency.
+Simulation results are compared against the Alternating Optimization (AO)
+baseline reported in the original paper.
+Our results show that \TODO{summarize your key finding here after running simulations}.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% ════════════════════════════════════════════════════════════════════════════
+\section{Introduction}
+\label{sec:intro}
+
+\subsection{Motivation}
+Wireless communication systems constantly demand higher data rates, better coverage,
+and improved energy efficiency. Traditional solutions -- such as deploying more base
+stations or using relay nodes -- are costly and power-hungry. \textit{Intelligent
+Reflecting Surfaces} (IRS) have recently emerged as a low-cost, passive alternative
+that can reshape the wireless propagation environment without requiring active
+radio-frequency components.
+
+An IRS consists of a large number of passive reflecting elements, each capable of
+independently adjusting the phase (and to some extent the amplitude) of the reflected
+signal. By coordinating these elements, an IRS can steer the reflected signals toward
+a desired receiver, effectively creating a constructive interference channel even in
+heavily obstructed environments.
+
+\subsection{Problem Statement}
+Most existing IRS research assumes an \textit{ideal phase shift model}, where each
+element reflects with unity amplitude regardless of its phase shift. However, as
+demonstrated in \cite{abeywickrama2020}, practical IRS elements exhibit a strong
+coupling between amplitude and phase shift due to inherent hardware losses. Designing
+beamforming strategies under this ideal assumption leads to measurable performance
+degradation in real systems.
+
+This project addresses the joint optimization of:
+\begin{enumerate}
+    \item \textbf{Transmit beamforming} at the access point (AP), and
+    \item \textbf{IRS phase shifts}, under the practical phase shift model,
+\end{enumerate}
+to maximize the achievable rate at a single-antenna user.
+
+\subsection{Chosen Algorithm}
+To solve this non-convex optimization problem, we employ
+\textbf{Particle Swarm Optimization (PSO)}, a population-based metaheuristic
+algorithm inspired by the collective behavior of bird flocks.
+% ^^^ CHANGE THIS section if you chose a different algorithm
+
+\subsection{Report Organization}
+The remainder of this report is organized as follows.
+Section~\ref{sec:sysmodel} describes the system model and the practical phase
+shift model. Section~\ref{sec:algorithm} presents the chosen optimization algorithm
+in detail. Section~\ref{sec:optimization} formulates the optimization problem and
+explains how the algorithm is applied. Section~\ref{sec:results} presents and
+discusses simulation results. Section~\ref{sec:conclusion} concludes the report.
+
+% ════════════════════════════════════════════════════════════════════════════
+\section{System Model}
+\label{sec:sysmodel}
+
+\subsection{Network Topology}
+We consider a Multiple-Input Single-Output (MISO) downlink system consisting of:
+\begin{itemize}
+    \item An \textbf{Access Point (AP)} equipped with $M$ antennas,
+    \item An \textbf{IRS} composed of $N$ passive reflecting elements,
+    \item A \textbf{single-antenna user}.
+\end{itemize}
+
+The system geometry is illustrated in Figure~\ref{fig:system_model}. The IRS is
+deployed between the AP and user to assist communication, particularly when the
+direct AP-user link is weak due to obstacles.
+
+\begin{figure}[H]
+    \centering
+    % Replace with your own diagram or simulation screenshot
+    \TODO{Insert system diagram here -- e.g., exported from Python/draw.io}
+    \caption{IRS-aided MISO wireless communication system.}
+    \label{fig:system_model}
+\end{figure}
+
+\subsection{Channel Model}
+Three channels are defined:
+\begin{itemize}
+    \item $\vect{h}_d \in \mathbb{C}^{M \times 1}$: the direct channel from AP to user,
+    \item $\vect{h}_r \in \mathbb{C}^{N \times 1}$: the channel from IRS to user,
+    \item $\mat{G} \in \mathbb{C}^{N \times M}$: the channel from AP to IRS.
+\end{itemize}
+All channels follow a quasi-static flat-fading model and are assumed known at the AP.
+Path loss is modeled with a reference attenuation of 40~dB at 1~m, and path loss
+exponents of 2.2 (AP-IRS), 2.8 (IRS-user), and 3.8 (AP-user) \cite{abeywickrama2020}.
+
+\subsection{Signal Model}
+The AP transmits signal $x = \vect{w}s$, where $\vect{w} \in \mathbb{C}^{M \times 1}$
+is the beamforming vector and $s$ is the data symbol with $\mathbb{E}[|s|^2] = 1$.
+The received signal at the user is:
+\begin{equation}
+    y = \left(\vect{v}^H \boldsymbol{\Phi} + \vect{h}_d^H\right)\vect{w}s + z,
+    \label{eq:received_signal}
+\end{equation}
+where $\boldsymbol{\Phi} = \text{diag}(\vect{h}_r^H)\mat{G}$ combines the AP-to-IRS
+and IRS-to-user channels, $\vect{v} \in \mathbb{C}^{N \times 1}$ is the IRS
+reflection coefficient vector, and $z \sim \mathcal{CN}(0, \sigma^2)$ is
+additive white Gaussian noise.
+
+\subsection{Achievable Rate}
+The achievable spectral efficiency (bits/s/Hz) is:
+\begin{equation}
+    R = \log_2\!\left(1 + \frac{\abs{(\vect{v}^H\boldsymbol{\Phi}
+        + \vect{h}_d^H)\vect{w}}^2}{\sigma^2}\right).
+    \label{eq:rate}
+\end{equation}
+Maximizing $R$ is equivalent to maximizing the received SNR.
+
+% ─── Practical Phase Shift Model ────────────────────────────────────────────
+\subsection{Practical Phase Shift Model}
+\label{subsec:psm}
+
+Unlike the ideal model which assumes $|v_n| = 1$ for all phase shifts, the
+practical model \cite{abeywickrama2020} captures the hardware reality that
+amplitude and phase are coupled. The $n$-th element's reflection coefficient is:
+\begin{equation}
+    v_n = \beta_n(\theta_n) e^{j\theta_n}, \quad \theta_n \in [-\pi, \pi),
+    \label{eq:vn}
+\end{equation}
+where the amplitude $\beta_n(\theta_n)$ is given by:
+\begin{equation}
+    \beta_n(\theta_n) = (1 - \beta_{\min})
+        \left(\frac{\sin(\theta_n - \phi) + 1}{2}\right)^k + \beta_{\min}.
+    \label{eq:beta}
+\end{equation}
+
+The parameters $\beta_{\min}$, $\phi$, and $k$ characterize the hardware:
+\begin{itemize}
+    \item $\beta_{\min} \geq 0$: the minimum reflection amplitude (floor),
+    \item $\phi \geq 0$: horizontal offset of the amplitude minimum,
+    \item $k \geq 0$: controls the sharpness of the amplitude dip.
+        When $k=0$, \eqref{eq:beta} reduces to the ideal model ($\beta_n = 1$).
+\end{itemize}
+
+In our simulations, we use $\beta_{\min} = 0.2$, $k = 1.6$, and
+$\phi = 0.43\pi$, as reported in \cite{abeywickrama2020}.
+
+\begin{remark}
+    The minimum amplitude occurs near $\theta_n = 0$ and the maximum near
+    $\theta_n = \pm\pi$. This means simply setting $\theta_n = \angle\varphi_n$
+    (as in the ideal design) is suboptimal when $\angle\varphi_n \approx 0$.
+\end{remark}
+
+% ════════════════════════════════════════════════════════════════════════════
+\section{Optimization Algorithm: Particle Swarm Optimization}
+\label{sec:algorithm}
+% ^^^ RENAME THIS SECTION to match your chosen algorithm
+
+\subsection{Basic Description}
+Particle Swarm Optimization (PSO) \cite{kennedy1995} is a population-based
+metaheuristic that simulates the social behavior of a flock of birds searching
+for food. Each candidate solution is represented as a \textit{particle} moving
+through the $N$-dimensional search space of IRS phase shifts.
+
+Each particle $i$ maintains:
+\begin{itemize}
+    \item $\vect{x}_i$: its current position (a candidate phase shift vector),
+    \item $\vect{p}_i$: its personal best position found so far,
+    \item $\vect{g}$: the global best position found by any particle,
+    \item $\vect{v}_i^{\text{vel}}$: its velocity (direction of movement).
+\end{itemize}
+
+\subsection{Update Rules}
+At each iteration $t$, velocities and positions are updated as:
+\begin{align}
+    \vect{v}_i^{(t+1)} &= w\,\vect{v}_i^{(t)}
+        + c_1 r_1 \left(\vect{p}_i - \vect{x}_i^{(t)}\right)
+        + c_2 r_2 \left(\vect{g}   - \vect{x}_i^{(t)}\right),
+        \label{eq:pso_vel} \\
+    \vect{x}_i^{(t+1)} &= \vect{x}_i^{(t)} + \vect{v}_i^{(t+1)},
+        \label{eq:pso_pos}
+\end{align}
+where $w$ is the inertia weight, $c_1$ and $c_2$ are cognitive and social
+coefficients, and $r_1, r_2 \sim \mathcal{U}(0,1)$ are random scalars.
+
+\subsection{Pseudocode}
+\begin{algorithm}[H]
+\caption{PSO for IRS Phase Shift Optimization}
+\label{alg:pso}
+\begin{algorithmic}[1]
+\Require $N$ (IRS elements), $S$ (swarm size), $T$ (max iterations),
+         channels $\vect{h}_d, \vect{h}_r, \mat{G}$,
+         model params $\beta_{\min}, \phi, k$
+\Ensure  Optimal phase shifts $\vect{\theta}^*$, maximum rate $R^*$
+
+\State \textbf{Initialize:} for each particle $i = 1,\ldots,S$:
+    $\vect{x}_i \leftarrow \text{Uniform}(-\pi, \pi)^N$,
+    $\vect{v}_i^{\text{vel}} \leftarrow \vect{0}$,
+    $\vect{p}_i \leftarrow \vect{x}_i$
+\State $\vect{g} \leftarrow \arg\max_i f(\vect{x}_i)$
+
+\For{$t = 1$ \textbf{to} $T$}
+    \For{$i = 1$ \textbf{to} $S$}
+        \State Compute $\beta_n$ from \eqref{eq:beta} for each element $n$
+        \State Build reflection vector: $v_n = \beta_n e^{j x_{i,n}}$
+        \State Compute combined channel:
+               $\vect{c} = \vect{v}^H\boldsymbol{\Phi} + \vect{h}_d^H$
+        \State Compute MRT beamforming:
+               $\vect{w}^* = \sqrt{P_T}\,\vect{c}^H / \norm{\vect{c}}$
+        \State Evaluate fitness: $f_i = \log_2(1 + |\vect{c}\vect{w}^*|^2/\sigma^2)$
+        \If{$f_i > f(\vect{p}_i)$}
+            $\vect{p}_i \leftarrow \vect{x}_i$
+        \EndIf
+        \If{$f_i > f(\vect{g})$}
+            $\vect{g} \leftarrow \vect{x}_i$
+        \EndIf
+        \State Update velocity via \eqref{eq:pso_vel}
+        \State Update position via \eqref{eq:pso_pos}
+        \State Clamp: $\vect{x}_i \leftarrow \text{clip}(\vect{x}_i, -\pi, \pi)$
+    \EndFor
+\EndFor
+\State \Return $\vect{g}$, $f(\vect{g})$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Computational Complexity}
+The per-iteration cost is $\mathcal{O}(S \cdot N \cdot M)$, where $S$ is the
+swarm size, $N$ the number of IRS elements, and $M$ the number of AP antennas.
+Total complexity over $T$ iterations is $\mathcal{O}(T \cdot S \cdot N \cdot M)$.
+For typical values ($T=200$, $S=30$, $N=40$, $M=2$), this is computationally
+tractable on a standard laptop.
+
+\subsection{Convergence Behavior}
+PSO is not guaranteed to find the global optimum due to the non-convex nature
+of the problem. However, empirically it converges within \TODO{X} iterations
+for this problem size (see Figure~\ref{fig:convergence}). The inertia weight
+$w$ is linearly decayed from 0.9 to 0.4 over iterations to balance exploration
+(early) and exploitation (late).
+
+\subsection{Variants and Parameter Settings}
+\TODO{Briefly mention 1-2 PSO variants, e.g., LPSO (local topology), APSO
+(adaptive PSO), or PSO with constriction factor. Then state the exact
+hyperparameters you used.}
+
+The hyperparameters used in this work are summarized in Table~\ref{tab:params}.
+
+\begin{table}[H]
+    \centering
+    \caption{PSO hyperparameters used in simulation.}
+    \label{tab:params}
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Parameter} & \textbf{Symbol} & \textbf{Value} \\
+        \midrule
+        Swarm size          & $S$   & 30 \\
+        Max iterations      & $T$   & 200 \\
+        Inertia weight      & $w$   & 0.9 $\to$ 0.4 (linear decay) \\
+        Cognitive coeff.    & $c_1$ & 2.0 \\
+        Social coeff.       & $c_2$ & 2.0 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% ════════════════════════════════════════════════════════════════════════════
+\section{Problem Formulation and Algorithm Application}
+\label{sec:optimization}
+
+\subsection{Joint Beamforming Optimization Problem}
+The joint optimization of AP beamforming $\vect{w}$ and IRS phase shifts
+$\{\theta_n\}$ is formulated as:
+\begin{equation}
+    \max_{\vect{w},\,\vect{v},\,\{\theta_n\}}\;
+        \abs{\left(\vect{v}^H\boldsymbol{\Phi} + \vect{h}_d^H\right)\vect{w}}^2
+    \quad \text{s.t.} \quad
+    \norm{\vect{w}}^2 \leq P_T, \quad
+    v_n = \beta_n(\theta_n)e^{j\theta_n},\; \theta_n \in [-\pi,\pi).
+    \label{eq:P0}
+\end{equation}
+
+\subsection{Decoupling via MRT Beamforming}
+For any fixed IRS phase shift vector $\vect{v}$, the optimal transmit
+beamforming is Maximum Ratio Transmission (MRT):
+\begin{equation}
+    \vect{w}^* = \sqrt{P_T}\,
+        \frac{\left(\vect{v}^H\boldsymbol{\Phi} + \vect{h}_d^H\right)^H}
+             {\norm{\vect{v}^H\boldsymbol{\Phi} + \vect{h}_d^H}}.
+    \label{eq:MRT}
+\end{equation}
+Substituting \eqref{eq:MRT} into \eqref{eq:P0} reduces the problem to
+optimizing only the IRS phase shifts $\{\theta_n\}$, which PSO handles directly.
+
+\subsection{PSO Applied to IRS Phase Shift Optimization}
+Each PSO particle encodes a candidate phase shift vector
+$\vect{x}_i = [\theta_1, \ldots, \theta_N] \in [-\pi, \pi)^N$.
+The fitness function evaluated for each particle is the achievable rate
+$R$ in \eqref{eq:rate}, computed using the practical model \eqref{eq:beta}
+and the MRT beamforming \eqref{eq:MRT}.
+
+PSO searches the $N$-dimensional continuous space for the phase configuration
+that maximizes $R$, without requiring gradient information or convexity
+assumptions.
+
+% ════════════════════════════════════════════════════════════════════════════
+\section{Simulation Results}
+\label{sec:results}
+
+\subsection{Simulation Setup}
+The simulation parameters follow those of \cite{abeywickrama2020} exactly,
+to allow direct comparison:
+
+\begin{table}[H]
+    \centering
+    \caption{Simulation parameters.}
+    \label{tab:sim_params}
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Parameter} & \textbf{Symbol} & \textbf{Value} \\
+        \midrule
+        AP antennas              & $M$           & 2 \\
+        IRS elements             & $N$           & 40 (Fig.~5), varied (Fig.~6) \\
+        AP-IRS distance          &               & 500 m \\
+        Reference path loss      &               & 40 dB at 1 m \\
+        Path loss exp. (AP-IRS)  & $\alpha_1$    & 2.2 \\
+        Path loss exp. (IRS-User)& $\alpha_2$    & 2.8 \\
+        Path loss exp. (AP-User) & $\alpha_3$    & 3.8 \\
+        Transmit power           & $P_T$         & 36 dBm \\
+        Noise variance           & $\sigma^2$    & $-94$ dBm \\
+        Phase shift model params & $\beta_{\min}, k, \phi$ & $0.2,\;1.6,\;0.43\pi$ \\
+        Channel realizations     &               & 1000 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Achievable Rate vs. AP-User Distance}
+
+\begin{figure}[H]
+    \centering
+    \TODO{Insert your reproduced Figure 5 here}
+    \caption{Achievable rate vs.\ AP-user horizontal distance ($N=40$).
+             Comparison of: (1) Ideal IRS upper bound, (2) PSO with practical
+             model, (3) AO with practical model (paper baseline), (4) Ideal
+             model assumption on practical hardware, (5) No IRS lower bound.}
+    \label{fig:rate_vs_distance}
+\end{figure}
+
+\TODO{Discuss your Figure~\ref{fig:rate_vs_distance} here.
+Compare your PSO curve against the AO curves from the paper.
+Comment on: (a) where PSO matches AO, (b) where it diverges and why,
+(c) the performance gap between practical and ideal model.}
+
+\subsection{Achievable Rate vs. Number of IRS Elements}
+
+\begin{figure}[H]
+    \centering
+    \TODO{Insert your reproduced Figure 6 here}
+    \caption{Achievable rate vs.\ number of reflecting elements ($d = 498$~m).}
+    \label{fig:rate_vs_N}
+\end{figure}
+
+\TODO{Discuss Figure~\ref{fig:rate_vs_N}: how does performance scale with $N$?
+Does the practical model gap grow with $N$? Why?}
+
+\subsection{Convergence of PSO}
+
+\begin{figure}[H]
+    \centering
+    \TODO{Insert convergence plot here: best fitness vs. iteration number}
+    \caption{PSO convergence behavior for a single channel realization ($N=40$,
+             $d=498$~m).}
+    \label{fig:convergence}
+\end{figure}
+
+\TODO{Comment on the number of iterations needed for convergence and
+the effect of swarm size on convergence speed.}
+
+\subsection{Discussion}
+\TODO{Write 1-2 paragraphs summarizing:
+\begin{itemize}
+    \item How well does PSO reproduce the paper's results?
+    \item What are PSO's advantages over AO for this problem
+          (e.g., no closed-form derivation needed, handles discrete phases)?
+    \item What are its disadvantages (e.g., slower convergence, hyperparameter sensitivity)?
+\end{itemize}}
+
+% ════════════════════════════════════════════════════════════════════════════
+\section{Conclusion}
+\label{sec:conclusion}
+
+This report studied the beamforming optimization problem for an IRS-aided MISO
+wireless communication system under the practical phase shift model proposed
+in \cite{abeywickrama2020}. The key contributions of this work are:
+\begin{enumerate}
+    \item A summary of the IRS system model and the practical phase shift model,
+          highlighting the amplitude-phase coupling that invalidates the ideal assumption.
+    \item A detailed description and implementation of Particle Swarm Optimization
+          for solving the joint transmit and reflect beamforming problem.
+    \item Simulation results that \TODO{describe your finding -- e.g., ``confirm
+          that PSO achieves within X\% of the AO baseline while requiring no
+          gradient computation''}.
+\end{enumerate}
+
+Future work could explore PSO variants with adaptive inertia, hybrid
+PSO-AO approaches, or extension to multi-user scenarios.
+
+% ─── References ─────────────────────────────────────────────────────────────
+\bibliographystyle{IEEEtran}
+\begin{thebibliography}{99}
+
+\bibitem{abeywickrama2020}
+S.~Abeywickrama, R.~Zhang, and C.~Yuen,
+``Intelligent reflecting surface: Practical phase shift model and beamforming optimization,''
+\textit{arXiv:1907.06002v4}, Feb. 2020.
+
+\bibitem{wu2019}
+Q.~Wu and R.~Zhang,
+``Intelligent reflecting surface enhanced wireless network via joint active and passive beamforming,''
+\textit{IEEE Trans. Wireless Commun.}, vol.~18, no.~11, pp.~5394--5409, Nov. 2019.
+
+\bibitem{kennedy1995}
+J.~Kennedy and R.~Eberhart,
+``Particle swarm optimization,''
+in \textit{Proc. IEEE Int. Conf. Neural Networks}, 1995, pp.~1942--1948.
+
+\bibitem{huang2019}
+C.~Huang, A.~Zappone, G.~C.~Alexandropoulos, M.~Debbah, and C.~Yuen,
+``Reconfigurable intelligent surfaces for energy efficiency in wireless communication,''
+\textit{IEEE Trans. Wireless Commun.}, vol.~18, no.~8, pp.~4157--4170, Aug. 2019.
+
+\bibitem{basar2019}
+E.~Basar \textit{et al.},
+``Wireless communications through reconfigurable intelligent surfaces,''
+\textit{IEEE Access}, vol.~7, pp.~116\,753--116\,773, Aug. 2019.
+
+\end{thebibliography}
+
+\end{document}
